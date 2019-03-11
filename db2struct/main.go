@@ -5,10 +5,11 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/Shelnutt2/db2struct"
 	goopt "github.com/droundy/goopt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/howeyc/gopass"
+
+	"github.com/kklinan/db2struct"
 )
 
 var mariadbHost = os.Getenv("MYSQL_HOST")
@@ -80,7 +81,7 @@ func main() {
 		return
 	}
 
-	columnDataTypes, err := db2struct.GetColumnsFromMysqlTable(*mariadbUser, *mariadbPassword, mariadbHost, *mariadbPort, *mariadbDatabase, *mariadbTable)
+	columnDataTypes, sortKeys, err := db2struct.GetColumnsFromMysqlTable(*mariadbUser, *mariadbPassword, mariadbHost, *mariadbPort, *mariadbDatabase, *mariadbTable)
 
 	if err != nil {
 		fmt.Println("Error in selecting column data information from mysql information schema")
@@ -96,7 +97,7 @@ func main() {
 		*packageName = "newpackage"
 	}
 	// Generate struct string based on columnDataTypes
-	struc, err := db2struct.Generate(*columnDataTypes, *mariadbTable, *structName, *packageName, *jsonAnnotation, *gormAnnotation, *gureguTypes)
+	struc, err := db2struct.Generate(*columnDataTypes, sortKeys, *mariadbTable, *structName, *packageName, *jsonAnnotation, *gormAnnotation, *gureguTypes)
 
 	if err != nil {
 		fmt.Println("Error in creating struct from json: " + err.Error())

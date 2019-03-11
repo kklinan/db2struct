@@ -4,13 +4,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 )
 
 // GetColumnsFromMysqlTable Select column details from information schema and return map of map
-func GetColumnsFromMysqlTable(mariadbUser string, mariadbPassword string, mariadbHost string, mariadbPort int, mariadbDatabase string, mariadbTable string) (*map[string]map[string]string, error) {
+func GetColumnsFromMysqlTable(mariadbUser string, mariadbPassword string, mariadbHost string, mariadbPort int, mariadbDatabase string, mariadbTable string) (*map[string]map[string]string, []string, error) {
 
 	var err error
 	var db *sql.DB
@@ -24,7 +23,7 @@ func GetColumnsFromMysqlTable(mariadbUser string, mariadbPassword string, mariad
 	// Check for error in db, note this does not check connectivity but does check uri
 	if err != nil {
 		fmt.Println("Error opening mysql db: " + err.Error())
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Store colum as map of maps
@@ -40,14 +39,15 @@ func GetColumnsFromMysqlTable(mariadbUser string, mariadbPassword string, mariad
 
 	if err != nil {
 		fmt.Println("Error selecting from db: " + err.Error())
-		return nil, err
+		return nil, nil, err
 	}
 	if rows != nil {
 		defer rows.Close()
 	} else {
-		return nil, errors.New("No results returned for table")
+		return nil, nil, errors.New("No results returned for table")
 	}
 
+	sortKeys := make([]string, 0)
 	for rows.Next() {
 		var column string
 		var columnKey string
@@ -55,23 +55,24 @@ func GetColumnsFromMysqlTable(mariadbUser string, mariadbPassword string, mariad
 		var nullable string
 		rows.Scan(&column, &columnKey, &dataType, &nullable)
 
+		sortKeys = append(sortKeys, column)
 		columnDataTypes[column] = map[string]string{"value": dataType, "nullable": nullable, "primary": columnKey}
 	}
 
-	return &columnDataTypes, err
+	return &columnDataTypes, sortKeys, err
 }
 
 // Generate go struct entries for a map[string]interface{} structure
-func generateMysqlTypes(obj map[string]map[string]string, depth int, jsonAnnotation bool, gormAnnotation bool, gureguTypes bool) string {
+func generateMysqlTypes(obj map[string]map[string]string, sortKeys []string, depth int, jsonAnnotation bool, gormAnnotation bool, gureguTypes bool) string {
 	structure := "struct {"
 
-	keys := make([]string, 0, len(obj))
-	for key := range obj {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
+	// keys := make([]string, 0, len(obj))
+	// for key := range obj {
+	// 	keys = append(keys, key)
+	// }
+	// sort.Strings(keys)
 
-	for _, key := range keys {
+	for _, key := range sortKeys {
 		mysqlType := obj[key]
 		nullable := false
 		if mysqlType["nullable"] == "YES" {
